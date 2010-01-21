@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="phpmd.example" default="example" basedir=".">
+    <taskdef name="phpmd" classname="org.phpmd.ant.PHPMDTask"/>
+
+    <target name="example">
+        <phpmd failonerror="off">
+            <formatter type="xml" toFile="${basedir}/pmd.xml" />
+            <ruleset>unusedcode</ruleset>
+            <ruleset>codesize</ruleset>
+            <fileset dir="${basedir}/source">
+                <include name="*.php" />
+            </fileset>
+        </phpmd>
+    </target>
+    <!--
+    <target name="example">
+        <phpmd rulesetfiles="unusedcode" failonerror="off">
+            <formatter type="xml" />
+            <fileset dir="${basedir}/source">
+                <include name="*.php" />
+            </fileset>
+        </phpmd>
+    </target>
+    -->
+</project>
