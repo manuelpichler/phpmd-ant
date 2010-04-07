@@ -44,6 +44,7 @@
 
 package org.phpmd.ant;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.tools.ant.BuildException;
@@ -51,6 +52,8 @@ import org.apache.tools.ant.DirectoryScanner;
 import org.apache.tools.ant.Project;
 import org.apache.tools.ant.Task;
 import org.apache.tools.ant.types.FileSet;
+import org.phpmd.java.Phpmd;
+import org.phpmd.java.Priority;
 
 /**
  * Main class of the PHPMD ant addon.
@@ -63,44 +66,55 @@ import org.apache.tools.ant.types.FileSet;
  */
 public class PHPMDTask extends Task {
 
+    private static final Integer EXIT_SUCCESS   = Phpmd.EXIT_CODE_SUCCESS,
+                                 EXIT_VIOLATION = Phpmd.EXIT_CODE_VIOLATION;
+
     /**
      * Should this task fail when an error occures?
      */
     private boolean failOnError = false;
 
     /**
+     * Should this task fail when a rule violation occures?
+     */
+    private boolean failOnRuleViolation = false;
+
+    /**
      * The priority thresholds for rules to use.
      */
-    private int minimumPriority = -1;
+    private int minimumPriority = Priority.DEFAULT_PRIORITY;
 
     /**
      * List of source files that will be analyzed by phpmd.
      */
-    private SourceFiles sourceFiles = new SourceFiles();
+    private FileSets fileSets = new FileSets();
 
+    /**
+     * Custom collection holding all specified rule sets.
+     */
     private RuleSets ruleSets = new RuleSets();
 
+    /**
+     * Formatter or report output.
+     */
     private Formatter formatter = new Formatter();
 
     @Override
     public void execute() {
-        this.formatter.validate();
-        this.ruleSets.validate();
+        this.validate();
 
-        PHPMDCliTool bin = PHPMDCliTool.find();
-        bin.setSources(this.sourceFiles.getFiles());
-        bin.setRuleSets(this.ruleSets.getFiles());
-        bin.setReportFormat(this.formatter.getType());
-        bin.setReportFile(this.formatter.getPathName());
-        bin.setMinimumPriority(this.minimumPriority);
-
+        Integer exitCode = EXIT_SUCCESS;
         try {
-            bin.run();
+            exitCode = this.getPreparedExecutable().run(new File(this.formatter.getPathName()));
         } catch (Exception e) {
             this.log(e, Project.MSG_ERR);
             if (this.failOnError) {
                 throw new BuildException(e.getMessage());
             }
+        }
+
+        if (exitCode.equals(EXIT_VIOLATION) && this.failOnRuleViolation) {
+            throw new BuildException("Stopping build since PHPMD found rule violations in the code");
         }
     }
 
@@ -113,6 +127,18 @@ public class PHPMDTask extends Task {
      */
     public void setFailOnError(boolean failOnError) {
         this.failOnError = failOnError;
+    }
+
+    /**
+     * Enables the fail on rule violation behavior. This means that the
+     * execute() method will throw an exception when one rule violation was
+     * found in the analyzed source code.
+     *
+     * @param failOnError Boolean flag that indicates if the task should throw
+     *        an exception when a rule violation occures.
+     */
+    public void setFailOnRuleViolation(boolean failOnRuleViolation) {
+        this.failOnRuleViolation = failOnRuleViolation;
     }
 
     /**
@@ -134,12 +160,12 @@ public class PHPMDTask extends Task {
      */
     public void setRuleSetFiles(String ruleSetFiles) {
         for (String ruleSetFile : ruleSetFiles.split(",")) {
-            this.ruleSets.addRuleSet(new RuleSet(ruleSetFile));
+            this.ruleSets.add(new RuleSet(ruleSetFile));
         }
     }
 
     public void addFileSet(FileSet fileSet) {
-        this.sourceFiles.addFileSet(fileSet);
+        this.fileSets.add(fileSet);
     }
 
     public void addFormatter(Formatter formatter) {
@@ -151,63 +177,104 @@ public class PHPMDTask extends Task {
     }
 
     public void addRuleSet(RuleSet ruleSet) {
-        this.ruleSets.addRuleSet(ruleSet);
+        this.ruleSets.add(ruleSet);
     }
 
     public RuleSet createRuleSet() {
         return new RuleSet();
     }
 
-    class RuleSets {
-        private List<RuleSet> ruleSets = new ArrayList<RuleSet>();
+    private void validate() {
+        this.formatter.validate();
+        this.fileSets.validate();
+        this.ruleSets.validate();
+    }
 
-        public void addRuleSet(RuleSet ruleSet) {
-            this.ruleSets.add(ruleSet);
+    private Phpmd getPreparedExecutable() {
+        return this.prepareExecutable(this.getExecutable());
+    }
+
+    private Phpmd prepareExecutable(Phpmd phpmd) {
+        phpmd.setMinimumPriority(this.minimumPriority);
+        phpmd.setReportFormat(this.formatter.getType());
+
+        for (String source : this.fileSets.getAll()) {
+            phpmd.addSource(source);
+        }
+        for (String ruleSet : this.ruleSets.getAll()) {
+            phpmd.addRuleSet(ruleSet);
+        }
+        return phpmd;
+    }
+
+    private Phpmd getExecutable() {
+        return new Phpmd();
+    }
+
+    abstract class AbstractSets<T> {
+        
+        private List<T> objects = new ArrayList<T>();
+
+        public void add(T object) {
+            this.objects.add(object);
         }
 
-        public String getFiles() {
-            String files = "";
-            for (RuleSet rs : this.ruleSets) {
-                files += "," + rs.getText();
+        public List<String> getAll() {
+            List<String> all = new ArrayList<String>();
+            for (T object : this.objects) {
+                this.append(object, all);
             }
-            return files.substring(1).trim();
+            return all;
         }
 
-        public void validate() {
-            if (this.ruleSets.size() > 0) {
-                for (RuleSet rs : this.ruleSets) {
-                    rs.validate();
-                }
-                return;
+        public void validate() throws BuildException {
+            if (this.objects.isEmpty()) {
+                throw new BuildException(this.getValidationMessage());
             }
-            throw new BuildException("At least 1 rule set must be specified.");
+            for (T object : this.objects) {
+                this.doValidate(object);
+            }
+        }
+
+        protected void doValidate(T object) throws BuildException {
+            // Nothing todo here
+        }
+
+        protected abstract void append(T object, List<String> list);
+        protected abstract String getValidationMessage();
+    }
+
+    class RuleSets extends AbstractSets<RuleSet> {
+
+        @Override
+        protected void append(RuleSet ruleSet, List<String> list) {
+            list.add(ruleSet.getText());
+        }
+
+        @Override
+        protected void doValidate(RuleSet ruleSet) {
+            ruleSet.validate();
+        }
+
+        @Override
+        protected String getValidationMessage() {
+            return "At least 1 rule set must be specified.";
         }
     }
 
-    class SourceFiles {
+    class FileSets extends AbstractSets<FileSet> {
 
-        private List<FileSet> fileSets = new ArrayList<FileSet>();
-
-        public void addFileSet(FileSet fileSet) {
-            this.fileSets.add(fileSet);
+        @Override
+        protected void append(FileSet object, List<String> list) {
+            DirectoryScanner ds = object.getDirectoryScanner();
+            for (String f : ds.getIncludedFiles()) {
+                list.add(ds.getBasedir() + "/" + f);
+            }
         }
 
-        public String getFiles() {
-            if (this.concatFileNames().length() == 0) {
-                return "";
-            }
-            return this.concatFileNames().substring(1);
-        }
-
-        private String concatFileNames() {
-            String fileNames = "";
-            for (FileSet fs : this.fileSets) {
-                DirectoryScanner ds = fs.getDirectoryScanner();
-                for (String f : ds.getIncludedFiles()) {
-                    fileNames += "," + ds.getBasedir() + "/" + f;
-                }
-            }
-            return fileNames;
+        @Override
+        protected String getValidationMessage() {
+            return "At least 1 FileSet must be specified.";
         }
     }
 }
