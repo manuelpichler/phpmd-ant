@@ -10,6 +10,26 @@
 <project name="org.phpmd.ant" default="default" basedir=".">
     <description>Builds, tests, and runs the project org.phpmd.ant.</description>
     <import file="nbproject/build-impl.xml"/>
+
+    <tempfile property="unpack.temp.dir" prefix="unpack" suffix=""/>
+
+    <target name="-post-jar" depends="unpack-jars,merge-jars">
+        <delete dir="${unpack.temp.dir}" />
+    </target>
+
+    <target name="unpack-jars">
+        <mkdir dir="${unpack.temp.dir}"/>
+        <unzip src="${basedir}/lib/org.phpmd.java.jar" dest="${unpack.temp.dir}"/>
+        <unzip src="${dist.jar}" dest="${unpack.temp.dir}"/>
+    </target>
+
+    <target name="merge-jars">
+        <jar jarfile="${dist.jar}">
+            <zipfileset dir="${unpack.temp.dir}"/>
+        </jar>
+        <delete dir="${unpack.temp.dir}" quiet="true" includeEmptyDirs="true"/>
+    </target>
+
     <!--
 
     There exist several targets which are by default empty and which can be 
