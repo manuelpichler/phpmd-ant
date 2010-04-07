@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<pmd version="0.2.1" timestamp="2010-01-20T15:47:23+01:00">
-  <file name="/home/manu/NetBeansProjects/org.phpmd.ant/example/source/Math.php">
+<pmd version="0.2.5" timestamp="2010-04-07T20:46:34+02:00">
+  <file name="/home/manuel/workspace/phpmd-ant-git/example/source/Math.php">
     <violation beginline="86" endline="145" rule="CyclomaticComplexity" ruleset="Code Size Rules" package="Example" externalInfoUrl="http://phpmd.org/rules/codesize.html#cyclomaticcomplexity" class="PhpUnderControl_Example_Math" method="div" priority="3">
       The method div() has a Cyclomatic Complexity of 11.
     </violation>

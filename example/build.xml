@@ -3,7 +3,7 @@
     <taskdef name="phpmd" classname="org.phpmd.ant.PHPMDTask"/>
 
     <target name="example">
-        <phpmd failonerror="off">
+        <phpmd failonerror="off" failonruleviolation="off">
             <formatter type="xml" toFile="${basedir}/pmd.xml" />
             <ruleset>unusedcode</ruleset>
             <ruleset>codesize</ruleset>
