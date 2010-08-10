@@ -207,4 +207,9 @@ class PhpUnderControl_Example_Math
 
         return $v8;
     }
+
+    private function doExit()
+    {
+        exit( 42 );
+    }
 }

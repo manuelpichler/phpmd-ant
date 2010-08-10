@@ -1,12 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project name="phpmd.example" default="example" basedir=".">
-    <taskdef name="phpmd" classname="org.phpmd.ant.PHPMDTask"/>
+    <taskdef name="phpmd" 
+             classname="org.phpmd.ant.PHPMDTask"
+             classpath="${basedir}/../dist/ant-phpmd.jar"/>
 
     <target name="example">
         <phpmd failonerror="off" failonruleviolation="off">
             <formatter type="xml" toFile="${basedir}/pmd.xml" />
             <ruleset>unusedcode</ruleset>
             <ruleset>codesize</ruleset>
+            <ruleset>design</ruleset>
+            <ruleset>naming</ruleset>
             <fileset dir="${basedir}/source">
                 <include name="*.php" />
             </fileset>
